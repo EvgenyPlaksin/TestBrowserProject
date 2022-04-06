@@ -6,6 +6,7 @@ import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.example.testbrowserproject.check.utils.Variables.url_2
 
 // если  уже делать красиво то надо бы по разным классам запихнуть
 class WebClient internal constructor(private val activity: Activity) : WebViewClient() {
@@ -34,6 +35,6 @@ class WebClient internal constructor(private val activity: Activity) : WebViewCl
     override fun onPageFinished(view: WebView?, url: String?) {
         Log.e("onPageFinished", "$url")
         CookieManager.getInstance().flush()
-
+        url_2 = url
     }
 }

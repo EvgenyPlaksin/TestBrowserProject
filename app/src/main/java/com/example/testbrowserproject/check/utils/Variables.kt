@@ -6,4 +6,5 @@ import android.webkit.ValueCallback
 object Variables {
     var uploadMessage: ValueCallback<Array<Uri>>? = null
     val REQUEST_SELECT_FILE = 100
+    var url_2: String? = null
 }

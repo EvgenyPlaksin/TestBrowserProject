@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.testbrowserproject.check.ConnectionCheck
 import com.example.testbrowserproject.check.utils.Variables.REQUEST_SELECT_FILE
 import com.example.testbrowserproject.check.utils.Variables.uploadMessage
+import com.example.testbrowserproject.check.utils.Variables.url_2
 import com.example.testbrowserproject.client.WebClient
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -50,7 +51,11 @@ class MainActivity : AppCompatActivity() {
                     javaScriptCanOpenWindowsAutomatically = true
                 }
 
-                web_browser?.loadUrl("http://www.google.com")
+                if(url_2 != null){
+                    web_browser.loadUrl("$url_2")
+                }else{
+                    web_browser?.loadUrl("http://www.google.com")
+                }
 
                 web_browser?.settings?.javaScriptEnabled = true // we need to enable javascript
                 web_browser?.canGoBack()
