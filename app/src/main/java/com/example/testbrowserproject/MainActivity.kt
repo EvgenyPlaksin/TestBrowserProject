@@ -5,14 +5,20 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.opengl.Visibility
+import android.os.Build
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.util.Log
 import android.view.View
 import android.webkit.*
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.testbrowserproject.check.ConnectionCheck
+import com.example.testbrowserproject.check.utils.Variables.FILECHOOSER_RESULTCODE
 import com.example.testbrowserproject.check.utils.Variables.REQUEST_SELECT_FILE
+import com.example.testbrowserproject.check.utils.Variables.fileornot
+import com.example.testbrowserproject.check.utils.Variables.mUploadMessage
 import com.example.testbrowserproject.check.utils.Variables.uploadMessage
 import com.example.testbrowserproject.check.utils.Variables.url_2
 import com.example.testbrowserproject.client.WebClient
@@ -50,38 +56,82 @@ class MainActivity : AppCompatActivity() {
                     setAppCacheEnabled(true)
                     javaScriptCanOpenWindowsAutomatically = true
                 }
-
-                if(url_2 != null){
-                    web_browser.loadUrl("$url_2")
-                }else{
-                    web_browser?.loadUrl("http://www.google.com")
+                if(!fileornot) {
+                    if (url_2 != null) {
+                        web_browser.loadUrl("$url_2")
+                    } else {
+                        web_browser?.loadUrl("http://www.google.com")
+                    }
                 }
-
                 web_browser?.settings?.javaScriptEnabled = true // we need to enable javascript
                 web_browser?.canGoBack()
                 web_browser?.webViewClient = WebClient(this)
                 web_browser?.setWebChromeClient(object : WebChromeClient() {
 
-                    override fun onShowFileChooser(
-                        webView: WebView?,
-                        filePathCallback: ValueCallback<Array<Uri>>?,
-                        fileChooserParams: FileChooserParams?
-                    ): Boolean {
-                        if (uploadMessage != null) {
-                            uploadMessage!!.onReceiveValue(null)
-                            uploadMessage = null
-                        }
-                        uploadMessage = filePathCallback
-                        try {
-                            startActivityForResult(
-                                fileChooserParams!!.createIntent(),
-                                REQUEST_SELECT_FILE
-                            )
-                        } catch (e: ActivityNotFoundException) {
-                            uploadMessage = null
+                    override fun onJsAlert(view: WebView, url: String, message: String, result: JsResult): Boolean {
+                        Log.d("alert", message)
+                        val dialogBuilder = AlertDialog.Builder(this@MainActivity)
+
+                        dialogBuilder.setMessage(message)
+                            .setCancelable(false)
+                            .setPositiveButton("OK") { _, _ ->
+                                result.confirm()
+                            }
+
+                        val alert = dialogBuilder.create()
+                        alert.show()
+
+                        return true
+                    }
+
+                    // For 3.0+ Devices (Start)
+                    // onActivityResult attached before constructor
+                    fun openFileChooser(uploadMsg : ValueCallback<Uri>, acceptType:String) {
+                        mUploadMessage = uploadMsg
+                        val i = Intent(Intent.ACTION_GET_CONTENT)
+                        i.addCategory(Intent.CATEGORY_OPENABLE)
+                        i.type = "*/*"
+                        startActivityForResult(Intent.createChooser(i, "File Browser"), FILECHOOSER_RESULTCODE)
+                    }
+
+                    // For Lollipop 5.0+ Devices
+                    override fun onShowFileChooser(mWebView:WebView, filePathCallback:ValueCallback<Array<Uri>>, fileChooserParams:WebChromeClient.FileChooserParams):Boolean {
+                        fileornot = true
+                        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
+                            if (uploadMessage != null) {
+                                uploadMessage?.onReceiveValue(null)
+                                uploadMessage = null
+                            }
+                            uploadMessage = filePathCallback
+                            val intent = fileChooserParams.createIntent()
+                            try {
+                                startActivityForResult(intent, REQUEST_SELECT_FILE)
+                            } catch (e:ActivityNotFoundException) {
+                                uploadMessage = null
+                                Toast.makeText(getApplicationContext(), "Cannot Open File Chooser", Toast.LENGTH_LONG).show()
+                                return false
+                            }
+                            return true
+                        }else{
                             return false
                         }
-                        return true
+                    }
+
+                    //For Android 4.1 only
+                    fun openFileChooser(uploadMsg:ValueCallback<Uri>, acceptType:String, capture:String) {
+                        mUploadMessage = uploadMsg
+                        val intent = Intent(Intent.ACTION_GET_CONTENT)
+                        intent.addCategory(Intent.CATEGORY_OPENABLE)
+                        intent.type = "*/*"
+                        startActivityForResult(Intent.createChooser(intent, "File Browser"), FILECHOOSER_RESULTCODE)
+                    }
+
+                    fun openFileChooser(uploadMsg:ValueCallback<Uri>) {
+                        mUploadMessage = uploadMsg
+                        val i = Intent(Intent.ACTION_GET_CONTENT)
+                        i.addCategory(Intent.CATEGORY_OPENABLE)
+                        i.type = "*/*"
+                        startActivityForResult(Intent.createChooser(i, "File Browser"), FILECHOOSER_RESULTCODE)
                     }
 
                 })
@@ -102,15 +152,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
         super.onActivityResult(requestCode, resultCode, intent)
-        if (requestCode == REQUEST_SELECT_FILE) {
-            if (uploadMessage == null) return
-            uploadMessage!!.onReceiveValue(
-                WebChromeClient.FileChooserParams.parseResult(
-                    resultCode,
-                    intent
-                )
-            )
-            uploadMessage = null
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+        {
+            if(requestCode == REQUEST_SELECT_FILE){
+                if(uploadMessage != null){
+                    uploadMessage?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode,intent))
+                    uploadMessage = null
+                }
+            }
+        }else if(requestCode == FILECHOOSER_RESULTCODE){
+            if(mUploadMessage!=null){
+                var result = intent?.data
+                mUploadMessage?.onReceiveValue(result)
+                mUploadMessage = null
+            }
+        }else{
+            Toast.makeText(this,"Failed to open file uploader, please check app permissions.",Toast.LENGTH_LONG).show()
+            super.onActivityResult(requestCode, resultCode, intent)
         }
     }
 
